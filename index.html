@@ -3,8 +3,8 @@
     <title>My test page. Don't worry about it.</title>
     <script type="module">
       import { Octokit, App } from "https://esm.sh/octokit";
-      import secrets from "./js/secrets.js";
-      import encryption from "./js/secrets.js";
+      import secrets from "./js/secrets.mjs";
+      import encryption from "./js/secrets.mjs";
       window.Octokit = Octokit;
       window.App = App;
       const e = encryption('whatever');
