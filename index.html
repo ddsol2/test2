@@ -3,6 +3,8 @@
     <title>My test page. Don't worry about it.</title>
     <script type="module">
       import { Octokit, App } from "https://esm.sh/octokit";
+      window.Octokit = Octokit;
+      window.App = App;
      </script>
   </head>
   <body>
