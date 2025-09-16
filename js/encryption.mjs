@@ -3,7 +3,7 @@ const keys = {};
 export default function makeEncryptor(password) {
   async function getPasswordKey(password) {
     if (keys[password]) return keys[password];
-    const salt = new Uint8Array([21, 31, 41, 51, 61, 71, 81, 91]);
+    const salt = new Uint8Array([215, 75, 51, 27, 82, 113, 30, 204]);
     return keys[password] = await (async () => {
       const enc = new TextEncoder();
       const raw = await window.crypto.subtle.importKey(
