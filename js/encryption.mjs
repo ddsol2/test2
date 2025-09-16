@@ -55,5 +55,9 @@ export default function makeEncryptor(password) {
     return utf8Decoder.decode(decryptedText);
   }
 
-  return { encrypt, decrypt };
+  function layer(password) {
+    return makeEncryptor(encrypt(password));
+  }
+
+  return { encrypt, decrypt, layer };
 }
