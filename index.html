@@ -7,7 +7,10 @@
       import secrets from "./js/secrets.mjs";
       import encryption from "./js/encryption.mjs";
 
-      Object.assign(window, { Octokit, OctokitFull, secrets, encryption });
+      //appPass = new Uint8Array((await encryption(rootPass).encrypt('my-app'))).toBase64()
+      window.appPass = 'vGGV/QJA0wz2EhAHPlU1R5ehqdJ4qg==';
+
+      Object.assign(window, { Octokit, OctokitFull, secrets, encryption, ...encryption.layer(appPass) });
      </script>
   </head>
   <body>
