@@ -1,0 +1,64 @@
+({}).cow
+'moo'
+npp = np.__proto__ = Object.create(null);
+VM2170:1 Uncaught TypeError: Immutable prototype object 'Object.prototype' cannot have their prototype set
+    at set __proto__ (<anonymous>)
+    at <anonymous>:1:20
+(anonymous) @ VM2170:1Understand this error
+p1=Object.prototype;
+{cow: 'moo', __defineGetter__: ƒ, __defineSetter__: ƒ, hasOwnProperty: ƒ, __lookupGetter__: ƒ, …}
+p2=Object.create(null)
+{}No properties
+Object.prototype = p2
+{}
+Object.prototype === p2
+false
+Object.prototype
+{cow: 'moo', __defineGetter__: ƒ, __defineSetter__: ƒ, hasOwnProperty: ƒ, __lookupGetter__: ƒ, …}
+p=new Proxy({})
+VM2460:1 Uncaught TypeError: Cannot create proxy with a non-object as target or handler
+    at <anonymous>:1:3
+(anonymous) @ VM2460:1Understand this error
+p=new Proxy({}, {})
+Proxy(Object) {}
+p.__proto__
+{cow: 'moo', __defineGetter__: ƒ, __defineSetter__: ƒ, hasOwnProperty: ƒ, __lookupGetter__: ƒ, …}
+p.cow
+'moo'
+p.__proto__ = { k: 1 }
+{k: 1}
+p
+Proxy(Object) {}[[Handler]]: Object[[Target]]: Object[[Prototype]]: Objectk: 1[[Prototype]]: Object[[IsRevoked]]: false
+p instanceof 6
+VM2637:1 Uncaught TypeError: Right-hand side of 'instanceof' is not an object
+    at <anonymous>:1:3
+(anonymous) @ VM2637:1Understand this error
+p instanceof {}
+VM2647:1 Uncaught TypeError: Right-hand side of 'instanceof' is not callable
+    at <anonymous>:1:3
+(anonymous) @ VM2647:1Understand this error
+p instanceof () => {}
+VM2668:1 Uncaught SyntaxError: Malformed arrow function parameter listUnderstand this error
+p instanceof (() => {})
+VM2676:1 Uncaught TypeError: Function has non-object prototype 'undefined' in instanceof check
+    at [Symbol.hasInstance] (<anonymous>)
+    at <anonymous>:1:3
+(anonymous) @ VM2676:1Understand this error
+temp1
+{k: 1}
+p instanceof temp1
+VM2717:1 Uncaught TypeError: Right-hand side of 'instanceof' is not callable
+    at <anonymous>:1:3
+(anonymous) @ VM2717:1Understand this error
+function MyF() {}
+undefined
+MyF.prototype = temp1
+{k: 1}
+ppp=new MyF()
+MyF {}[[Prototype]]: Objectk: 1[[Prototype]]: Object
+MyF instanceof temp1
+VM2910:1 Uncaught TypeError: Right-hand side of 'instanceof' is not callable
+    at <anonymous>:1:5
+(anonymous) @ VM2910:1Understand this error
+p instanceof MyF
+true
