@@ -143,14 +143,9 @@ function makeAutoBindProto(orig, recurse, targetProto, bound) {
   };
   return applied ? targetProto : orig;
 }
+np=Object.prototype=Object.create(Object.prototype)
 
-function insertSuperProto(proto = null) {
-  // Creates a new proto (with passed proto as __proto__) that is installed 
-  // between Object and its proto, effectively making all properties on this
-  // object available as "super" properties on all objects
-  return insertProto(proto);
-}
-function insertProto(target = Object) {
+function insertProto(target = Object.prototype) {
   // Inserts a proto between target and its proto, effectively making all
   // properties on this object available as "super" properties on all objects
   // descended from target. __proto__ can't be changed on the returned object
@@ -161,3 +156,4 @@ function insertProto(target = Object) {
   target.__proto__ = newProto;
   return newProto;
 }
+
