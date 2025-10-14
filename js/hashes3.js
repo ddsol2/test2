@@ -98,7 +98,5 @@ function init() {
     }
     return result;
   }
-
-
 }
 
