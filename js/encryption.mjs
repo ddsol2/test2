@@ -33,7 +33,7 @@ export default function makeEncryptor(password) {
   async function encrypt(message, initializationVector = new ArrayBuffer(16)) {
     const key = await getPasswordKey(password);
     const encoder = new TextEncoder();
-    encodedMessage = encoder.encode(message);
+    const encodedMessage = encoder.encode(message);
     // iv will be needed for decryption
     return await window.crypto.subtle.encrypt(
       { name: "AES-GCM", iv: initializationVector },
