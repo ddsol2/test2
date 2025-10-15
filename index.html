@@ -1,19 +1,28 @@
-<html>
-  <head>
-    <title>My test page. Don't worry about it.</title>
-    <script type="module">
-      import { Octokit, App } from "https://esm.sh/octokit";
-      import * as OctokitFull from "https://esm.sh/octokit";
-      import secrets from "./js/secrets.mjs";
-      import encryption from "./js/encryption.mjs";
+<html lang="en">
 
-      //appPass = new Uint8Array((await encryption(rootPass).encrypt('my-app'))).toBase64()
-      window.appPass = 'vGGV/QJA0wz2EhAHPlU1R5ehqdJ4qg==';
+<head>
+  <title>My test page. Don't worry about it.</title>
+  <script type="module">
+    import { Octokit, App } from "https://esm.sh/octokit";
+    import * as OctokitFull from "https://esm.sh/octokit";
+    import secrets from "./js/secrets.mjs";
+    import encryption from "./js/encryption.mjs";
 
-      Object.assign(window, { Octokit, OctokitFull, secrets, encryption, ...encryption(appPass) });
-     </script>
-  </head>
-  <body>
-    Nice here. I like it!
-  </body>
+    //appPass = new Uint8Array((await encryption(rootPass).encrypt('my-app'))).toBase64()
+    window.appPass = 'vGGV/QJA0wz2EhAHPlU1R5ehqdJ4qg==';
+
+    Object.assign(window, { Octokit, OctokitFull, secrets, encryption, ...encryption(appPass) });
+  </script>
+  <style>
+    body {
+      background: #494642;
+      color: #a3aeb1;
+    }
+  </style>
+</head>
+
+<body>
+  Nice here. I like it!
+</body>
+
 </html>
