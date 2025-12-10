@@ -26,4 +26,38 @@
   Nice here. I like it!
 </body>
 
+<script>
+  // Probleem hier is dat hij moet de hele file downen. Nee, want http lost dat op. Maar wel de hele file vergelijken.
+  //
+(async function autoUpdate() {
+  const scriptUrl = "https://jijserver.nl/script.js"; // jouw remote script
+  const hashUrl = scriptUrl + "?hash";                // endpoint voor versiecheck
+
+  const storedHash = localStorage.getItem("script_hash");
+
+  try {
+    const newHash = await fetch(hashUrl, { cache: "no-store" }).then(r => r.text());
+
+    if (newHash !== storedHash) {
+      // Nieuwe versie gevonden -> vervang script + refresh
+      console.log("Nieuwe versie gevonden, wordt geladen...");
+
+      const script = document.createElement("script");
+      script.src = scriptUrl + "?v=" + newHash;
+      script.onload = () => {
+        localStorage.setItem("script_hash", newHash);
+        location.reload();
+      };
+      document.body.appendChild(script);
+    } else {
+      console.log("Up-to-date");
+    }
+  } catch (err) {
+    console.warn("Update check mislukt:", err);
+  }
+})();
+
+// html vervangen
+</script>
+
 </html>
