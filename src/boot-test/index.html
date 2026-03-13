@@ -79,7 +79,7 @@
       const sourceURLComment = `\n//# sourceURL=universe:///${path}`;
 
       VFS.set(path, {
-        code: result.code + sourceMapComment + sourceURLComment,
+        code: code + sourceMapComment + sourceURLComment,
         deps
       });
       // VFS.set(path, { code, deps });
