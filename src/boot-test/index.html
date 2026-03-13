@@ -38,7 +38,7 @@
       const source = await host.readFile(path);
       const deps = [];
 
-      const { code } = Babel.transform(source, {
+      const { code, map } = Babel.transform(source, {
         filename: path,
         presets: ['typescript'],
         sourceMaps: true,
@@ -74,7 +74,7 @@
       });
 
       // Create the Source Map comment
-      const mapBase64 = btoa(JSON.stringify(result.map));
+      const mapBase64 = btoa(JSON.stringify(map));
       const sourceMapComment = `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${mapBase64}`;
       const sourceURLComment = `\n//# sourceURL=universe:///${path}`;
 
