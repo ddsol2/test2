@@ -41,6 +41,7 @@
       const { code } = Babel.transform(source, {
         filename: path,
         presets: ['typescript'],
+        sourceMaps: true,
         plugins: [
           ['transform-modules-commonjs', { strictMode: false }],
           ({ types: t }) => ({
