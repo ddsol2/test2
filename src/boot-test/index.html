@@ -47,7 +47,8 @@
               ImportDeclaration(p) {
                 const specifier = p.node.source.value;
                 // Basic resolver: assumes relative imports for now
-                const resolved = specifier.endsWith('.ts') ? specifier : specifier + '.ts';
+                let resolved = specifier.endsWith('.ts') ? specifier : specifier + '.ts';
+                resolved = resolved.replace(/^\.\/?/, 'src/'); // Ensure it points to src/
                 deps.push(resolved);
 
                 // Rewrite to sync: const {x} = __require('./lib.ts')
