@@ -15,7 +15,7 @@
     const pathParts = window.location.pathname.split('/').filter(Boolean);
     const user = window.location.hostname.split('.')[0];
     const repo = pathParts[0] || 'your-repo-name';
-    const rawBase = `https://raw.githubusercontent.com/${[user,repo,'main',...pathParts.slice(1)].join('/')}`;
+    const rawBase = `https://raw.githubusercontent.com/${[user, repo, 'main', ...pathParts.slice(1)].join('/')}`;
 
     const host = {
       async readFile(path) {
@@ -73,7 +73,16 @@
         ]
       });
 
-      VFS.set(path, { code, deps });
+      // Create the Source Map comment
+      const mapBase64 = btoa(JSON.stringify(result.map));
+      const sourceMapComment = `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${mapBase64}`;
+      const sourceURLComment = `\n//# sourceURL=universe:///${path}`;
+
+      VFS.set(path, {
+        code: result.code + sourceMapComment + sourceURLComment,
+        deps
+      });
+      // VFS.set(path, { code, deps });
       await Promise.all(deps.map(d => deepCompile(d)));
     }
 
