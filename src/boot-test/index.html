@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Fluid Logic Engine</title>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+
+<body style="background: #111; color: #eee; font-family: monospace;">
+  <div id="status">Awakening...</div>
+  <script>
+    const status = (msg) => document.getElementById('status').innerText = `📡 ${msg}`;
+
+    // 1. Sniff GitHub Info
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    const user = window.location.hostname.split('.')[0];
+    const repo = pathParts[0] || 'your-repo-name';
+    const rawBase = `https://raw.githubusercontent.com/${user}/${repo}/main`;
+
+    const host = {
+      async readFile(path) {
+        // Ensure path is relative to src
+        const url = path.startsWith('http') ? path : `${rawBase}/${path}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Could not find: ${path}`);
+        return res.text();
+      }
+    };
+
+    const VFS = new Map(); // Store compiled code & metadata
+    const moduleCache = new Map();
+
+    // 2. The Recursive Compiler
+    async function deepCompile(path) {
+      if (VFS.has(path)) return;
+
+      status(`Compiling: ${path}`);
+      const source = await host.readFile(path);
+      const deps = [];
+
+      const { code } = Babel.transform(source, {
+        filename: path,
+        presets: ['typescript'],
+        plugins: [
+          ({ types: t }) => ({
+            visitor: {
+              ImportDeclaration(p) {
+                const specifier = p.node.source.value;
+                // Basic resolver: assumes relative imports for now
+                const resolved = specifier.endsWith('.ts') ? specifier : specifier + '.ts';
+                deps.push(resolved);
+
+                // Rewrite to sync: const {x} = __require('./lib.ts')
+                const variableName = p.node.specifiers[0]?.local.name;
+                if (variableName) {
+                  p.replaceWith(t.variableDeclaration("const", [
+                    t.variableDeclarator(
+                      t.identifier(variableName),
+                      t.callExpression(t.identifier("__require"), [t.stringLiteral(resolved)])
+                    )
+                  ]));
+                } else {
+                  p.replaceWith(t.expressionStatement(
+                    t.callExpression(t.identifier("__require"), [t.stringLiteral(resolved)])
+                  ));
+                }
+              }
+            }
+          })
+        ]
+      });
+
+      VFS.set(path, { code, deps });
+      await Promise.all(deps.map(d => deepCompile(d)));
+    }
+
+    // 3. The Sync Executor
+    function __require(path) {
+      if (moduleCache.has(path)) return moduleCache.get(path).exports;
+
+      const module = { exports: {} };
+      moduleCache.set(path, module);
+
+      const entry = VFS.get(path);
+      if (!entry) throw new Error(`Module ${path} not in VFS!`);
+
+      // Inject sync require into the scope
+      const wrapper = new Function('__require', 'exports', 'module', entry.code);
+      wrapper(__require, module.exports, module);
+
+      return module.exports;
+    }
+
+    async function init() {
+      try {
+        await deepCompile('src/main.ts');
+        status("Universe Incarnated. Running...");
+        __require('src/main.ts');
+      } catch (e) {
+        status(`Error: ${e.message}`);
+        console.error(e);
+      }
+    }
+
+    init();
+  </script>
+</body>
+
+</html>
