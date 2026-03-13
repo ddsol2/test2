@@ -42,6 +42,7 @@
         filename: path,
         presets: ['typescript'],
         plugins: [
+          ['transform-modules-commonjs', { strictMode: false }],
           ({ types: t }) => ({
             visitor: {
               ImportDeclaration(p) {
