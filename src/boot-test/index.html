@@ -20,7 +20,7 @@
     const host = {
       async readFile(path) {
         // Ensure path is relative to src
-        const url = path.startsWith('http') ? path : `${rawBase}/${path}`;
+        const url = path.startsWith('http') ? path : `${rawBase}/${path}?t=${Date.now()`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`Could not find: ${path}`);
         return res.text();
