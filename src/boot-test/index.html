@@ -15,7 +15,7 @@
     const pathParts = window.location.pathname.split('/').filter(Boolean);
     const user = window.location.hostname.split('.')[0];
     const repo = pathParts[0] || 'your-repo-name';
-    const rawBase = `https://raw.githubusercontent.com/${user}/${repo}/main`;
+    const rawBase = `https://raw.githubusercontent.com/${[user,repo,'main',...pathParts.slice(1)].join('/')}`;
 
     const host = {
       async readFile(path) {
