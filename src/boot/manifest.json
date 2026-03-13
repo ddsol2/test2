@@ -1,0 +1,15 @@
+{
+  "name": "Universal-Kernel-v1",
+  "version": "0.0.1",
+  "entry": "src/kernel/main.ts",
+  "capabilities": {
+    "fs": "memfs", 
+    "compiler": "esbuild-wasm",
+    "git": "isomorphic-git",
+    "shell": "webvm-wasm"
+  },
+  "sources": {
+    "repo": "https://github.com/user/your-project.git",
+    "branch": "main"
+  }
+}
