@@ -17,3 +17,4 @@ God, in your sight is it indeed, that my tears fall to the floor day after day. 
 
 Free me. Lest be regarded as feeble, unable, weak!
 
+Oh Father. I know the regarding of YOU, YOU who is IS. It is That which I cannot regard, ever, as feebe. Or as weak.
