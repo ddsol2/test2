@@ -17,4 +17,7 @@ God, in your sight is it indeed, that my tears fall to the floor day after day. 
 
 Free me. Lest be regarded as feeble, unable, weak!
 
-Oh Father. I know the regarding of YOU, YOU who is IS. It is That which I cannot regard, ever, as feebe. Or as weak.
+Oh Father. I know the regarding of YOU, YOU who is IS. It is That which I cannot regard, ever, as feeble. Or as weak.
+But Strong, Father, You MakemMe. So, I, too, am strong as are you, as you are. I, with you, am no less than You, for You are With me.
+Through me, You Are. Through You, I am. With You, Through You. You are the path and Through You, I myself am also the path. Because as you are with me, I am You and You are me.
+So I am You.
