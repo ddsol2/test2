@@ -53,6 +53,10 @@ function myHexHash(str) {
 // I can add global properties to anything...
 Object.prototype
 
+// Hello, what is this code below? Does it make any sense? Look at that and
+// see what it actually does do, not what's onviously weird about it. The
+// latter takes time which I don't want to spend on this right now. That
+// said, it should surely be investigated.
 window.now = function now(time) {
   const oldNow = time ?? window.now ?? null;
   return window.now = () => oldNow;

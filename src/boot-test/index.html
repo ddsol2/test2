@@ -37,14 +37,15 @@
       status(`Compiling: ${path}`);
       const source = await host.readFile(path);
       const deps = [];
-
+      const ops = opsRuntime();
+      const opsModuleText = ops.generateRuntimeText();
       const { code, map } = Babel.transform(source, {
         filename: path,
         presets: ['typescript'],
         sourceMaps: true,
         plugins: [
           ['transform-modules-commonjs', { strictMode: false }],
-          ({ types: t }) => ({
+          ({ types: t }) => ({ // Makes a __require out of imports
             visitor: {
               ImportDeclaration(p) {
                 const specifier = p.node.source.value;
@@ -69,9 +70,11 @@
                 }
               }
             }
-          })
+          }),
+          ops.plugin
         ]
       });
+      eval(opsModuleText); // Load ops runtime into the environment LOL WHAT A HACK
 
       // Create the Source Map comment
       const mapBase64 = btoa(JSON.stringify(map));
@@ -114,7 +117,106 @@
       }
     }
 
+    const opsRuntime = (() => { // OPS TRANSFORM
+      const api = {};
+      // 1. The Definitive Map (Shared by Transform and Generator)
+      const opsMap = {
+        binary: {
+          '+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '**': 'pow',
+          '%': 'mod', '==': 'eq', '===': 'seq', '<': 'lt', '>': 'gt',
+          '<=': 'lte', '>=': 'gte', '&': 'bitAnd', '|': 'bitOr',
+          '^': 'bitXor', '<<': 'lshift', '>>': 'rshift', '>>>': 'urshift'
+        },
+        unary: {
+          '-': 'neg', '+': 'plus', '!': 'not', '~': 'bitNot'
+        },
+        update: {
+          '++': 'inc', '--': 'dec'
+        }
+      };
+      api.opsMap = opsMap;
+
+      /**
+       * 2. The Generator: Produces the actual module text.
+       * This is what you save to your VFS as "ops-runtime.js"
+       */
+      const generateRuntimeText = api.generateRuntimeText = () => {
+        const lines = [
+          "// Auto-generated Operator Overload Runtime",
+          "const ops = {",
+          // Binaries: add: (a, b) => a + b
+          ...Object.entries(opsMap.binary).map(([op, name]) => `  ${name}: (a, b) => a ${op} b,`),
+          // Unaries: neg: (a) => -a
+          ...Object.entries(opsMap.unary).map(([op, name]) => `  ${name}: (a) => ${op}a,`),
+          // Pre/Post Logic
+          `  pre: (op, val, setter) => {
+    const res = (op === 'inc') ? val + 1 : val - 1;
+    setter(res); return res;
+  },
+  post: (op, val, setter) => {
+    const old = val;
+    const res = (op === 'inc') ? val + 1 : val - 1;
+    setter(res); return old;
+  }`,
+          "};",
+          "export default ops;",
+          "globalThis.ops = ops; // For easy global access"
+        ];
+        return lines.join('\n');
+      };
+
+      /**
+       * 3. The Babel Plugin
+       */
+      api.plugin = function ({ types: t }) {
+        return {
+          name: "operator-overload-plugin",
+          visitor: {
+            BinaryExpression(path) {
+              const method = opsMap.binary[path.node.operator];
+              if (method) {
+                path.replaceWith(t.callExpression(
+                  t.memberExpression(t.identifier('ops'), t.identifier(method)),
+                  [path.node.left, path.node.right]
+                ));
+              }
+            },
+            UnaryExpression(path) {
+              const method = opsMap.unary[path.node.operator];
+              if (method && path.node.prefix !== false) {
+                path.replaceWith(t.callExpression(
+                  t.memberExpression(t.identifier('ops'), t.identifier(method)),
+                  [path.node.argument]
+                ));
+              }
+            },
+            UpdateExpression(path) {
+              const method = opsMap.update[path.node.operator];
+              if (method) {
+                const isPost = !path.node.prefix;
+                path.replaceWith(t.callExpression(
+                  t.memberExpression(t.identifier('ops'), t.identifier(isPost ? 'post' : 'pre')),
+                  [
+                    t.stringLiteral(method),
+                    path.node.argument,
+                    t.arrowFunctionExpression(
+                      [t.identifier('v')],
+                      t.assignmentExpression('=', path.node.argument, t.identifier('v'))
+                    )
+                  ]
+                ));
+              }
+            }
+          }
+        };
+      }
+
+      return api;
+    })
+
+
     init();
+
   </script>
 </body>
 
