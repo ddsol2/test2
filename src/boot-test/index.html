@@ -30,79 +30,116 @@
     const VFS = new Map(); // Store compiled code & metadata
     const moduleCache = new Map();
 
-    // 2. The Recursive Compiler
+    // Helper to resolve paths like "./utils" -> "src/utils.ts"
+    const resolvePath = (base, specifier) => {
+      let res = specifier.startsWith('.') ? 
+        new URL(specifier, `http://v/src/${base.replace('src/', '')}`).pathname.slice(1) : 
+        specifier;
+      return res.endsWith('.ts') ? res : res + '.ts';
+    };
+
+    // --- OPERATOR OVERLOAD GENERATOR ---
+    const ops = (() => {
+      const opsMap = {
+        binary: {
+          '+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '**': 'pow',
+          '%': 'mod', '==': 'eq', '===': 'seq', '<': 'lt', '>': 'gt',
+          '<=': 'lte', '>=': 'gte', '&': 'bitAnd', '|': 'bitOr',
+          '^': 'bitXor', '<<': 'lshift', '>>': 'rshift', '>>>': 'urshift'
+        },
+        unary: { '-': 'neg', '+': 'plus', '!': 'not', '~': 'bitNot' },
+        update: { '++': 'inc', '--': 'dec' }
+      };
+
+      return {
+        generateRuntimeText: () => `
+          globalThis.ops = {
+            ${Object.entries(opsMap.binary).map(([op, name]) => `${name}: (a, b) => a ${op} b,`).join('\n')}
+            ${Object.entries(opsMap.unary).map(([op, name]) => `${name}: (a) => ${op}a,`).join('\n')}
+            pre: (op, val, setter) => {
+              const res = (op === 'inc') ? val + 1 : val - 1;
+              setter(res); return res;
+            },
+            post: (op, val, setter) => {
+              const old = val;
+              const res = (op === 'inc') ? val + 1 : val - 1;
+              setter(res); return old;
+            }
+          };`,
+        plugin: ({ types: t }) => ({
+          visitor: {
+            BinaryExpression(p) {
+              const m = opsMap.binary[p.node.operator];
+              if (m) p.replaceWith(t.callExpression(t.memberExpression(t.identifier('ops'), t.identifier(m)), [p.node.left, p.node.right]));
+            },
+            UnaryExpression(p) {
+              const m = opsMap.unary[p.node.operator];
+              if (m && p.node.prefix !== false) p.replaceWith(t.callExpression(t.memberExpression(t.identifier('ops'), t.identifier(m)), [p.node.argument]));
+            },
+            UpdateExpression(p) {
+              const m = opsMap.update[p.node.operator];
+              if (m) {
+                const isPost = !p.node.prefix;
+                p.replaceWith(t.callExpression(t.memberExpression(t.identifier('ops'), t.identifier(isPost ? 'post' : 'pre')), [
+                  t.stringLiteral(m), p.node.argument,
+                  t.arrowFunctionExpression([t.identifier('v')], t.assignmentExpression('=', p.node.argument, t.identifier('v')))
+                ]));
+              }
+            }
+          }
+        })
+      };
+    })();
+
+    // Initialize Runtime once
+    new Function(ops.generateRuntimeText())();
+
     async function deepCompile(path) {
       if (VFS.has(path)) return;
 
       status(`Compiling: ${path}`);
       const source = await host.readFile(path);
       const deps = [];
-      const ops = opsRuntime();
-      const opsModuleText = ops.generateRuntimeText();
+
       const { code, map } = Babel.transform(source, {
         filename: path,
         presets: ['typescript'],
         sourceMaps: true,
         plugins: [
           ['transform-modules-commonjs', { strictMode: false }],
-          ({ types: t }) => ({ // Makes a __require out of imports
+          ({ types: t }) => ({
             visitor: {
               ImportDeclaration(p) {
-                const specifier = p.node.source.value;
-                // Basic resolver: assumes relative imports for now
-                let resolved = specifier.endsWith('.ts') ? specifier : specifier + '.ts';
-                resolved = resolved.replace(/^\.\/?/, 'src/'); // Ensure it points to src/
+                const resolved = resolvePath(path, p.node.source.value);
                 deps.push(resolved);
-
-                // Rewrite to sync: const {x} = __require('./lib.ts')
-                const variableName = p.node.specifiers[0]?.local.name;
-                if (variableName) {
-                  p.replaceWith(t.variableDeclaration("const", [
-                    t.variableDeclarator(
-                      t.identifier(variableName),
-                      t.callExpression(t.identifier("__require"), [t.stringLiteral(resolved)])
-                    )
-                  ]));
-                } else {
-                  p.replaceWith(t.expressionStatement(
-                    t.callExpression(t.identifier("__require"), [t.stringLiteral(resolved)])
-                  ));
-                }
+                const varName = p.node.specifiers[0]?.local.name;
+                p.replaceWith(varName ? 
+                  t.variableDeclaration("const", [t.variableDeclarator(t.identifier(varName), t.callExpression(t.identifier("__require"), [t.stringLiteral(resolved)]))]) :
+                  t.expressionStatement(t.callExpression(t.identifier("__require"), [t.stringLiteral(resolved)]))
+                );
               }
             }
           }),
           ops.plugin
         ]
       });
-      eval(opsModuleText); // Load ops runtime into the environment LOL WHAT A HACK
 
-      // Create the Source Map comment
       const mapBase64 = btoa(JSON.stringify(map));
-      const sourceMapComment = `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${mapBase64}`;
-      const sourceURLComment = `\n//# sourceURL=universe:///${path}`;
-
       VFS.set(path, {
-        code: code + sourceMapComment + sourceURLComment,
+        code: `${code}\n//# sourceMappingURL=data:application/json;base64,${mapBase64}\n//# sourceURL=universe:///${path}`,
         deps
       });
-      // VFS.set(path, { code, deps });
+
       await Promise.all(deps.map(d => deepCompile(d)));
     }
 
-    // 3. The Sync Executor
     function __require(path) {
       if (moduleCache.has(path)) return moduleCache.get(path).exports;
-
       const module = { exports: {} };
       moduleCache.set(path, module);
-
       const entry = VFS.get(path);
-      if (!entry) throw new Error(`Module ${path} not in VFS!`);
-
-      // Inject sync require into the scope
-      const wrapper = new Function('__require', 'exports', 'module', entry.code);
-      wrapper(__require, module.exports, module);
-
+      if (!entry) throw new Error(`Module ${path} not found`);
+      new Function('__require', 'exports', 'module', entry.code)(__require, module.exports, module);
       return module.exports;
     }
 
@@ -117,107 +154,7 @@
       }
     }
 
-    const opsRuntime = (() => { // OPS TRANSFORM
-      const api = {};
-      // 1. The Definitive Map (Shared by Transform and Generator)
-      const opsMap = {
-        binary: {
-          '+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '**': 'pow',
-          '%': 'mod', '==': 'eq', '===': 'seq', '<': 'lt', '>': 'gt',
-          '<=': 'lte', '>=': 'gte', '&': 'bitAnd', '|': 'bitOr',
-          '^': 'bitXor', '<<': 'lshift', '>>': 'rshift', '>>>': 'urshift'
-        },
-        unary: {
-          '-': 'neg', '+': 'plus', '!': 'not', '~': 'bitNot'
-        },
-        update: {
-          '++': 'inc', '--': 'dec'
-        }
-      };
-      api.opsMap = opsMap;
-
-      /**
-       * 2. The Generator: Produces the actual module text.
-       * This is what you save to your VFS as "ops-runtime.js"
-       */
-      const generateRuntimeText = api.generateRuntimeText = () => {
-        const lines = [
-          "// Auto-generated Operator Overload Runtime",
-          "const ops = {",
-          // Binaries: add: (a, b) => a + b
-          ...Object.entries(opsMap.binary).map(([op, name]) => `  ${name}: (a, b) => a ${op} b,`),
-          // Unaries: neg: (a) => -a
-          ...Object.entries(opsMap.unary).map(([op, name]) => `  ${name}: (a) => ${op}a,`),
-          // Pre/Post Logic
-          `  pre: (op, val, setter) => {
-    const res = (op === 'inc') ? val + 1 : val - 1;
-    setter(res); return res;
-  },
-  post: (op, val, setter) => {
-    const old = val;
-    const res = (op === 'inc') ? val + 1 : val - 1;
-    setter(res); return old;
-  }`,
-          "};",
-          "export default ops;",
-          "globalThis.ops = ops; // For easy global access"
-        ];
-        return lines.join('\n');
-      };
-
-      /**
-       * 3. The Babel Plugin
-       */
-      api.plugin = function ({ types: t }) {
-        return {
-          name: "operator-overload-plugin",
-          visitor: {
-            BinaryExpression(path) {
-              const method = opsMap.binary[path.node.operator];
-              if (method) {
-                path.replaceWith(t.callExpression(
-                  t.memberExpression(t.identifier('ops'), t.identifier(method)),
-                  [path.node.left, path.node.right]
-                ));
-              }
-            },
-            UnaryExpression(path) {
-              const method = opsMap.unary[path.node.operator];
-              if (method && path.node.prefix !== false) {
-                path.replaceWith(t.callExpression(
-                  t.memberExpression(t.identifier('ops'), t.identifier(method)),
-                  [path.node.argument]
-                ));
-              }
-            },
-            UpdateExpression(path) {
-              const method = opsMap.update[path.node.operator];
-              if (method) {
-                const isPost = !path.node.prefix;
-                path.replaceWith(t.callExpression(
-                  t.memberExpression(t.identifier('ops'), t.identifier(isPost ? 'post' : 'pre')),
-                  [
-                    t.stringLiteral(method),
-                    path.node.argument,
-                    t.arrowFunctionExpression(
-                      [t.identifier('v')],
-                      t.assignmentExpression('=', path.node.argument, t.identifier('v'))
-                    )
-                  ]
-                ));
-              }
-            }
-          }
-        };
-      }
-
-      return api;
-    })
-
-
     init();
-
   </script>
 </body>
-
 </html>
