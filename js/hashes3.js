@@ -10,11 +10,11 @@ function init() {
    * to handle the __proto2__ property and delegate other operations to the original object or the __proto2__ object as needed.
    * The Proxy is then set as the new prototype of the original object, effectively adding the __proto2__ property.
    */
-  function addProto2(obj) {
+  function addProto2(obj, initialValue = null) {
     if (obj.hasOwnProperty('__proto2__')) return obj; // Already has __proto2__
     if (obj === Object.prototype) return obj; // Can't add to Object.prototype
     const originalProto = Object.getPrototypeOf(obj);
-    let __proto2__ = null; // Default value when read without writing after installation of the proxy as the new real __proto__
+    let __proto2__ = initialValue; // Default value when read without writing after installation of the proxy as the new real __proto__
     const addedProto = new Proxy(this, {
       get(target, prop, receiver) {
         if (prop === '__proto2__') return __proto2__;
@@ -68,7 +68,7 @@ function init() {
         throw new Error('__proto2__ cannot be set on Object.prototype');
       }
       if (!this.hasOwnProperty('__proto2__')) {
-        addProto2(this);
+        addProto2(this, value);
       }
     },
     get() {
@@ -78,25 +78,28 @@ function init() {
     enumerable: false
   });
 
-  // Now we also edit some other things on Object.prototype
-  // Object.create can be modified to automatically add __proto2__ to created objects unless the prototype is null
-  const oldCreate = Object.create;
-  Object.create = function (proto, propertiesObject) {
-    const obj = oldCreate(proto, propertiesObject);
-    if (proto !== null && !obj.hasOwnProperty('__proto2__')) {
-      addProto2(obj);
-    }
-    return obj;
-  }
+  function addExtras() {
+    // I decided this is nonsense. We aren't trying to override any globals, in fact, the piont is that everythig is local, and "from here on out".
 
-  // Object.setPrototypeOf can be modified to automatically add __proto2__ to the object if needed
-  const oldSetPrototypeOf = Object.setPrototypeOf;
-  Object.setPrototypeOf = function (obj, proto) {
-    const result = oldSetPrototypeOf(obj, proto);
-    if (proto !== null && !obj.hasOwnProperty('__proto2__')) {
-      addProto2(obj);
+    // Now we also edit some other things on Object.prototype
+    // Object.create can be modified to automatically add __proto2__ to created objects unless the prototype is null
+    const oldCreate = Object.create;
+    Object.create = function (proto, propertiesObject) {
+      const obj = oldCreate(proto, propertiesObject);
+      if (proto !== null && !obj.hasOwnProperty('__proto2__')) {
+        addProto2(obj);
+      }
+      return obj;
     }
-    return result;
+
+    // Object.setPrototypeOf can be modified to automatically add __proto2__ to the object if needed
+    const oldSetPrototypeOf = Object.setPrototypeOf;
+    Object.setPrototypeOf = function (obj, proto) {
+      const result = oldSetPrototypeOf(obj, proto);
+      if (proto !== null && !obj.hasOwnProperty('__proto2__')) {
+        addProto2(obj);
+      }
+      return result;
+    }
   }
 }
-
