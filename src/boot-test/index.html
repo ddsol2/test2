@@ -67,6 +67,7 @@
             }
           };`,
         plugin: ({ types: t }) => ({
+          name: "operator-overload",
           visitor: {
             BinaryExpression(p) {
               const m = opsMap.binary[p.node.operator];
@@ -100,14 +101,39 @@
       status(`Compiling: ${path}`);
       const source = await host.readFile(path);
       const deps = [];
+      let originalAst = null;
+      let nextId = 1;
 
       const { code, map, ast } = Babel.transform(source, {
         filename: path,
         presets: ['typescript'],
         sourceMaps: true,
+        ast: true,
         plugins: [
+          ({
+            name: "add-node-ids",
+
+            visitor: {
+              Program(path) {
+                path.traverse({
+                  enter(innerPath) {
+                    if (innerPath.node.__id == null) {
+                      innerPath.node.__id = nextId++;
+                    }
+                  },
+                });
+              },
+            },
+          }),
+          ({ types: t }) => ({
+            name: "capture-original-ast",
+            pre(file) {
+              originalAst = structuredClone(file.ast);
+            }
+          }),
           ['transform-modules-commonjs', { strictMode: false }],
           ({ types: t }) => ({
+            name: "resolve-imports",
             visitor: {
               ImportDeclaration(p) {
                 const resolved = resolvePath(path, p.node.source.value);
@@ -123,7 +149,7 @@
           ops.plugin
         ]
       });
-      console.log('AST for', path, ast);
+      console.log('AST for', path, ast, originalAst);
 
       const mapBase64 = btoa(JSON.stringify(map));
       VFS.set(path, {
