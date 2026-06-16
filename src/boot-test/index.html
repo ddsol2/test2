@@ -32,8 +32,8 @@
 
     // Helper to resolve paths like "./utils" -> "src/utils.ts"
     const resolvePath = (base, specifier) => {
-      let res = specifier.startsWith('.') ? 
-        new URL(specifier, `http://v/src/${base.replace('src/', '')}`).pathname.slice(1) : 
+      let res = specifier.startsWith('.') ?
+        new URL(specifier, `http://v/src/${base.replace('src/', '')}`).pathname.slice(1) :
         specifier;
       return res.endsWith('.ts') ? res : res + '.ts';
     };
@@ -101,7 +101,7 @@
       const source = await host.readFile(path);
       const deps = [];
 
-      const { code, map } = Babel.transform(source, {
+      const { code, map, ast } = Babel.transform(source, {
         filename: path,
         presets: ['typescript'],
         sourceMaps: true,
@@ -113,7 +113,7 @@
                 const resolved = resolvePath(path, p.node.source.value);
                 deps.push(resolved);
                 const varName = p.node.specifiers[0]?.local.name;
-                p.replaceWith(varName ? 
+                p.replaceWith(varName ?
                   t.variableDeclaration("const", [t.variableDeclarator(t.identifier(varName), t.callExpression(t.identifier("__require"), [t.stringLiteral(resolved)]))]) :
                   t.expressionStatement(t.callExpression(t.identifier("__require"), [t.stringLiteral(resolved)]))
                 );
@@ -123,6 +123,7 @@
           ops.plugin
         ]
       });
+      console.log('AST for', path, ast);
 
       const mapBase64 = btoa(JSON.stringify(map));
       VFS.set(path, {
@@ -157,4 +158,5 @@
     init();
   </script>
 </body>
+
 </html>
